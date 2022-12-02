@@ -68,11 +68,11 @@ class UserPostPatchRequest(BaseModel):
 ###
 
 class Team(SQLModel, table=True):
-    id: int = Field(primary_key=True, description="Internal team id")
-    name: str = Field(index=True, min_length=3, max_length=39, description='Unique name for this team.')
+    id:          int           = Field(primary_key=True, description="Internal team id")
+    name:        str           = Field(index=True, min_length=3, max_length=39, description='Unique name for this team.')
     description: Optional[str] = Field(default=None, description='Optional user supplied description.')
-    created_at: timestamp = Field(default_factory=time, description='The epoch timestamp when the team was created.')
-    updated_at: timestamp = Field(default_factory=time, description='The epoch timestamp when the team was updated.')
+    created_at:  timestamp     = Field(default_factory=time, description='The epoch timestamp when the team was created.')
+    updated_at:  timestamp     = Field(default_factory=time, description='The epoch timestamp when the team was updated.')
 
 
 class TeamRole(str, enum.Enum):
@@ -82,22 +82,22 @@ class TeamRole(str, enum.Enum):
     view    = 'view'
     
 class TeamMember(SQLModel, table=True):
-    id: int = Field(primary_key=True, description="Internal membership id")
-    team_id: int = Field(index=True, description="The team_id that the associated user is a member of.")
-    user_id: int = Field(index=True, description="The user_id that is  a member of the associated team.")
+    id:         int       = Field(primary_key=True, description="Internal membership id")
+    team_id:    int       = Field(index=True, description="The team_id that the associated user is a member of.")
+    user_id:    int       = Field(index=True, description="The user_id that is  a member of the associated team.")
     created_at: timestamp = Field(default_factory=time, description='The epoch timestamp when the membership was created.')
     updated_at: timestamp = Field(default_factory=time, description='The epoch timestamp when the membership was updated.')
-    invited_by: int = Field(index=True, description="The user that invited this member to the team.")
-    role:  TeamRole = Field(sa_column=Column(Enum(TeamRole)), description="The user's role in the team")
-    accepted: bool = Field(False, description='True if the user has accepted the team membership.')
+    invited_by: int       = Field(index=True, description="The user that invited this member to the team.")
+    role:       TeamRole  = Field(sa_column=Column(Enum(TeamRole)), description="The user's role in the team")
+    accepted:   bool      = Field(False, description='True if the user has accepted the team membership.')
 
 class TeamPostRequest(BaseModel):
-    name: str = Field(index=True, min_length=3, max_length=39, description='Unique name for this team.')
+    name:        str           = Field(index=True, min_length=3, max_length=39, description='Unique name for this team.')
     description: Optional[str] = Field(default=None, description='Optional user supplied description.')
 
 class TeamMemberPostRequest(BaseModel):
-    user_id: int = Field(description="The user_id of a member to invite to the team.")
-    role:  TeamRole = Field(description="The user's role in the team")
+    user_id: int      = Field(description="The user_id of a member to invite to the team.")
+    role:    TeamRole = Field(description="The user's role in the team")
 
 class UserTeams(BaseModel):
     items: List[Team] = Field(description="The list of all of the user's teams")
