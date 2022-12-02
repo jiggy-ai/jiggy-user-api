@@ -53,18 +53,57 @@ if r.status_code == 200:
     if r.status_code != 200: print(r.content)
     assert(r.status_code==200)
 
-r = s.get("/users/current")
-if r.status_code == 200:
-    # delete user
-    user_id = r.json()['id']
-    print("delete user_id", user_id)
-    r = s.delete(f"/users/{user_id}")
-    if r.status_code != 200: print(r.content)
-    assert(r.status_code==200)
 
 r = s.post("/users", json={'username': "foobar"})
-print(r.status_code)
-print(r.text)
+assert(r.status_code == 200)
+print(r.json())
+
+r = s.post("/apikey", json={'description':'mykey'})
+assert(r.status_code == 200)
+apikey = r.json()
+assert(apikey['description'] == 'mykey')
+key = apikey['key']
+
+
+r = s.post("/auth", json={'key':key})
+assert(r.status_code == 200)
+print(r.json())
+
+
+r = s.get("/apikey")
+assert(r.status_code == 200)
+
+for k in r.json()['items']:
+    print(k)
+    kid = k["id"]
+    r = s.delete(f'/apikey/{kid}')
+    assert(r.status_code == 200)
+
+r = s.get("/apikey")
+assert(r.status_code == 200)
+assert(len(r.json()['items']) == 0)
+
+
+##
+## Team
+##
+
+r = s.get("/teams")
+assert(r.status_code == 200)
+teams = r.json()['items']
+assert(len(teams) == 1)
+assert(teams[0]['id'] == s.get("/users/current").json()['default_team_id'])
+
+
+# create_team
+# delete team (TODO)
+# negative test removing solo admin
+
+# todo: need additional test users to fully test teams
+
+##
+## Cleanup
+##
 
 r = s.get("/users/current")
 if r.status_code == 200:
@@ -74,3 +113,4 @@ if r.status_code == 200:
     r = s.delete(f"/users/{user_id}")
     if r.status_code != 200: print(r.content)
     assert(r.status_code==200)
+

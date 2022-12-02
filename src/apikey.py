@@ -5,7 +5,7 @@
 from __future__ import annotations
 from loguru import logger
 from sqlmodel import Session, select, delete
-from string import ascii_lowercase
+from string import ascii_lowercase, ascii_uppercase
 from random import sample
 from fastapi import Path, Query, Depends, HTTPException
 
@@ -13,7 +13,6 @@ from main import app
 from auth import *
 from db import engine
 from models import *
-
 
 
 JWT_RSA_PUBLIC_KEY = os.environ['JIGGY_JWT_RSA_PUBLIC_KEY']
@@ -27,7 +26,7 @@ def post_auth(body: AuthRequest = ...) -> Jwt:
     trade an API key for a JWT Bearer token that can be used to authenticate subsequent API operations.
     """
     with Session(engine) as session:    
-        apikey = session.get(ApiKey, body.key)
+        apikey = session.exec(select(ApiKey).where(ApiKey.key == body.key)).first()
         if not apikey:
             logger.info("invalid API key")
             raise HTTPException(status_code=401, detail="Invalid Key")
@@ -35,7 +34,8 @@ def post_auth(body: AuthRequest = ...) -> Jwt:
         apikey.last_used = time()
         session.add(apikey)
         session.commit()
-        iat = int(time())
+        
+        iat = int(time())        
         token_info = {'iat':  iat,
                       'exp':  iat + 15*60, 
                       'iss':  JWT_ISSUER,
@@ -50,24 +50,24 @@ def create_apikey(user_id, description=None):
     """
     create an API key for the specified username
     """
-    key = ApiKey(key = "jgy-" + "".join([sample(ascii_lowercase,1)[0] for x in range(48)]),
+    key = ApiKey(key = "jgy-" + "".join([sample(ascii_lowercase+ascii_uppercase,1)[0] for x in range(42)]),
                  user_id = user_id,
                  description = description)
     
     with Session(engine) as session:
         session.add(key)
         session.commit()
-        session.refresh(key)                
-    return ApiKeyResponse(**key.dict())
+        session.refresh(key)
+    return ApiKey(**key.dict())
     
 
-@app.post("/apikey", response_model=ApiKeyResponse)
+@app.post("/apikey", response_model=ApiKey)
 def post_apikey(token: str = Depends(token_auth_scheme),
-                body: ApiKeyRequest = ...) -> ApiKeyResponse:
+                body: ApiKeyRequest = ...) -> ApiKey:
     """
     create an API key for an authenticated user
     """
-    user_id = verified_user_id(token)        
+    user_id = verified_user_id(token)
     return create_apikey(user_id, body.description)
 
 
@@ -77,7 +77,7 @@ def get_apikey(token: str = Depends(token_auth_scheme)) -> AllApiKeyResponse:
     """
     return all of the user's API keys
     """
-    user_id = verified_user_id(token)        
+    user_id = verified_user_id(token)
     with Session(engine) as session:
         statement = select(ApiKey).where(ApiKey.user_id == user_id)
         keys = list(session.exec(statement))
@@ -86,16 +86,16 @@ def get_apikey(token: str = Depends(token_auth_scheme)) -> AllApiKeyResponse:
 
 
 
-@app.delete('/apikey/{api_key}')
+@app.delete('/apikey/{api_key_id}')
 def delete_apikey(token: str = Depends(token_auth_scheme),
-                  api_key: str = Path(...)):
+                  api_key_id: str = Path(...)):
     """
     delete the specified api key.
     """
-    user_id = verified_user_id(token)        
+    user_id = verified_user_id(token)
     
     with Session(engine) as session:    
-        apikey = session.get(ApiKey, body.key)
+        apikey = session.get(ApiKey, api_key_id)
         if not apikey or apikey.user_id != user_id:
             raise HTTPException(status_code=404, detail="Invalid Key")
         session.delete(apikey)

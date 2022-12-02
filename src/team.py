@@ -55,7 +55,7 @@ def post_team(token: str = Depends(token_auth_scheme),
         
         session.add(member)
         session.commit()
-
+        return team
 
 @app.delete('/team/{team_id}')
 def delete_team(token: str = Depends(token_auth_scheme),
@@ -65,7 +65,7 @@ def delete_team(token: str = Depends(token_auth_scheme),
         team = session.get(Team, team_id)
         if not team:
             raise HTTPException(status_code=404, detail="Team not found")
-        #XXX
+        raise HTTPException(status_code=501, detail="Not Implemented")
         
     
         
