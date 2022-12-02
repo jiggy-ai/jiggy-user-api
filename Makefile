@@ -10,9 +10,9 @@ help:
 .DEFAULT_GOAL := all
 
 build:
-	    docker build -t wskish/jiggy-user-api:${TAG} .
+	    docker build -t jiggyai/jiggy-user-api:${TAG} .
 
 push:
-	    docker push wskish/jiggy-user-api:${TAG}
+	    docker push jiggyai/jiggy-user-api:${TAG}
 
 all: build push
