@@ -52,9 +52,9 @@ def post_team(token: str = Depends(token_auth_scheme),
                             invited_by=user_id,
                             role=TeamRole.admin,
                             accepted=True)
-        
         session.add(member)
         session.commit()
+        session.refresh(team)
         return team
 
 @app.delete('/team/{team_id}')
@@ -81,8 +81,8 @@ def post_team_member(token: str = Depends(token_auth_scheme),
             raise HTTPException(status_code=404, detail="Team not found")
         
         # verify calling user is a member of the specified team
-        statement = select(Team).where(TeamMember.user_id == user_id, TeamMember.team_id == team_id)
-        user_member = session.exec(statement)
+        statement = select(TeamMember).where(TeamMember.user_id == user_id, TeamMember.team_id == team_id)
+        user_member = session.exec(statement).first()
         if not user_member:
             raise HTTPException(status_code=404, detail="Team not found")
 
@@ -91,22 +91,23 @@ def post_team_member(token: str = Depends(token_auth_scheme),
             raise HTTPException(status_code=409, detail="Insufficient permissions to add member to the specified team.")
 
         # verify new user exists
-        new_user = session.get(User, body.user_id)
+        new_user = session.exec(select(User).where(User.username == body.username)).first()
         if not new_user:
             raise HTTPException(status_code=404, detail="User not found")
 
         # Verify new user is not already a member of the team
-        statement = select(TeamMember).where(TeamMember.user_id == body.user_id, TeamMember.team_id == team_id)
+        statement = select(TeamMember).where(TeamMember.user_id == new_user.id, TeamMember.team_id == team_id)
         if list(session.exec(statement)):
             raise HTTPException(status_code=409, detail="User is already a member of the specified team.") 
         
         new_member = TeamMember(team_id=team.id,
-                                user_id=body.user_id,
+                                user_id=new_user.id,
                                 invited_by=user_id,
                                 role=TeamRole.admin,
                                 accepted=True)        
         session.add(new_member)
         session.commit()
+        logger.info(f"add {user_member} to {team}")
         return new_member
 
 

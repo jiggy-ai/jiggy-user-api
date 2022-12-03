@@ -1,7 +1,7 @@
 from typing import Optional, List
 
 from sqlmodel import Field, SQLModel, Column, ARRAY, Float, Enum
-from pydantic import EmailStr, BaseModel, ValidationError, validator
+from pydantic import BaseModel, ValidationError, validator
 from array import array
 from pydantic import condecimal
 import json
@@ -96,8 +96,8 @@ class TeamPostRequest(BaseModel):
     description: Optional[str] = Field(default=None, description='Optional user supplied description.')
 
 class TeamMemberPostRequest(BaseModel):
-    user_id: int      = Field(description="The user_id of a member to invite to the team.")
-    role:    TeamRole = Field(description="The user's role in the team")
+    username: str      = Field(description="The user_name of a member to invite to the team.")
+    role:     TeamRole = Field(description="The user's role in the team")
 
 class UserTeams(BaseModel):
     items: List[Team] = Field(description="The list of all of the user's teams")
