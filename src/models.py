@@ -89,7 +89,7 @@ class TeamMember(SQLModel, table=True):
     updated_at: timestamp = Field(default_factory=time, description='The epoch timestamp when the membership was updated.')
     invited_by: int       = Field(index=True, description="The user that invited this member to the team.")
     role:       TeamRole  = Field(sa_column=Column(Enum(TeamRole)), description="The user's role in the team")
-    accepted:   bool      = Field(False, description='True if the user has accepted the team membership.')
+    accepted:   bool      = Field(default=False, description='True if the user has accepted the team membership.')
 
 class TeamPostRequest(BaseModel):
     name:        str           = Field(index=True, min_length=3, max_length=39, description='Unique name for this team.')
@@ -101,3 +101,17 @@ class TeamMemberPostRequest(BaseModel):
 
 class UserTeams(BaseModel):
     items: List[Team] = Field(description="The list of all of the user's teams")
+
+    
+class TeamMemberResponse(BaseModel):
+    id:                  int       = Field(description="Internal membership id")
+    username:            str       = Field(description="Member username")
+    created_at:          timestamp = Field(description='The epoch timestamp when the membership was created.')
+    updated_at:          timestamp = Field(description='The epoch timestamp when the membership was updated.')
+    invited_by_username: str       = Field(description="The username that invited this member to the team.")
+    role:                TeamRole  = Field(description="The user's role in the team")
+    accepted:            bool      = Field(description='True if the user has accepted the team membership.')
+    
+    
+class GetTeamMembersResponse(BaseModel):
+    items: List[TeamMemberResponse] = Field(description="List of Team Members")

@@ -23,17 +23,15 @@ def get_teams(token: str = Depends(token_auth_scheme)) -> UserTeams:
     """
     user_id, user_team_ids = verified_user_id_teams(token)
     with Session(engine) as session:
-        items = []
-        for team_id in user_team_ids:
-            items.append(session.get(Team, team_id))
+        items = session.exec(select(Team).where(Team.id.in_(user_team_ids))).all()
         return UserTeams(items = items)
     
               
-@app.post('/team', response_model=Team)
+@app.post('/teams', response_model=Team)
 def post_team(token: str = Depends(token_auth_scheme),
               body: TeamPostRequest = ...) -> Team:
     """
-    Create a Team
+    Create a Team with the specified name.  Names must currently be unique.
     """
     logger.info(body)    
     user_id, user_team_ids = verified_user_id_teams(token)
@@ -57,24 +55,39 @@ def post_team(token: str = Depends(token_auth_scheme),
         session.refresh(team)
         return team
 
-@app.delete('/team/{team_id}')
-def delete_team(token: str = Depends(token_auth_scheme),
-                team_id: str = Path(...)):
+
+
+
+@app.get('/teams/{team_id}/members')
+def get_team_team_id_member(token: str = Depends(token_auth_scheme),
+                            team_id: int = Path(...)):
+    """
+    Get all members of the specified team
+    """
     user_id, user_team_ids = verified_user_id_teams(token)
+    if team_id not in user_team_ids:
+        raise HTTPException(status_code=404, detail="Team not found")
     with Session(engine) as session:
-        team = session.get(Team, team_id)
-        if not team:
-            raise HTTPException(status_code=404, detail="Team not found")
-        raise HTTPException(status_code=501, detail="Not Implemented")
-        
+        members = []
+        for member in session.exec(select(TeamMember).where(TeamMember.team_id == team_id)):
+            logger.info(str(member))
+            logger.info(member)
+            tmr = TeamMemberResponse(**member.dict(),
+                                     username            = session.get(User, member.user_id).username,
+                                     invited_by_username = session.get(User, member.invited_by).username)
+            members.append(tmr)
+        return GetTeamMembersResponse(items=members)
+    
     
         
-@app.post('/team/{team_id}/member')
+@app.post('/teams/{team_id}/members')
 def post_team_member(token: str = Depends(token_auth_scheme),
-                     team_id: str = Path(...),
+                     team_id: int = Path(...),
                      body: TeamMemberPostRequest = ...) -> TeamMember:
 
     user_id, user_team_ids = verified_user_id_teams(token)
+    if team_id not in user_team_ids:
+        raise HTTPException(status_code=404, detail="Team not found")
     with Session(engine) as session:    
         team = session.get(Team, team_id)
         if not team:
@@ -104,29 +117,31 @@ def post_team_member(token: str = Depends(token_auth_scheme),
                                 user_id=new_user.id,
                                 invited_by=user_id,
                                 role=TeamRole.admin,
-                                accepted=True)        
+                                accepted=True)
         session.add(new_member)
         session.commit()
         logger.info(f"add {user_member} to {team}")
         return new_member
 
 
-@app.delete('/team/{team_id}/member/{member_id}')
+@app.delete('/teams/{team_id}/members/{member_id}')
 def delete_team_member(token: str = Depends(token_auth_scheme),
-                       team_id: str = Path(...),
-                       member_id: str = Path(...)):
+                       team_id: int = Path(...),
+                       member_id: int = Path(...)):
     """
     remove  the specified member from the team
     """
-    user_id = verified_user_id(token)        
+    user_id, user_team_ids = verified_user_id_teams(token)    
+    if team_id not in user_team_ids:
+        raise HTTPException(status_code=404, detail="Team not found")    
     with Session(engine) as session:    
         team = session.get(Team, team_id)
         if not team:
             raise HTTPException(status_code=404, detail="Team not found")
 
         # verify calling user is a member of the specified team
-        statement = select(Team).where(TeamMember.user_id == user_id, TeamMember.team_id == team_id)
-        user_member = session.exec(statement)
+        statement = select(TeamMember).where(TeamMember.user_id == user_id, TeamMember.team_id == team_id)
+        user_member = session.exec(statement).first()
         if not user_member:
             raise HTTPException(status_code=404, detail="Team not found")  
 
@@ -148,9 +163,9 @@ def delete_team_member(token: str = Depends(token_auth_scheme),
         if requesting_user_is_target and user_member.role == TeamRole.admin:
             statement = select(TeamMember).where(TeamMember.role == TeamRole.admin, TeamMember.team_id == team_id)
             num_admins = len(session.exec(statement))
-        if num_admins == 1:
-            raise HTTPException(status_code=403, detail="Team admin must designate another admin before removal.")
+            if num_admins == 1:
+                raise HTTPException(status_code=403, detail="Team admin must designate another admin before removal.")
         session.delete(target_member)
-        
+        session.commit()
     
         
