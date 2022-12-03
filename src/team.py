@@ -105,10 +105,10 @@ def get_team_team_id_member(token: str = Depends(token_auth_scheme),
     
     
         
-@app.post('/teams/{team_id}/members', response_model=TeamMember)
+@app.post('/teams/{team_id}/members', response_model=TeamMemberResponse)
 def post_team_member(token: str = Depends(token_auth_scheme),
                      team_id: int = Path(...),
-                     body: TeamMemberPostRequest = ...) -> TeamMember:
+                     body: TeamMemberPostRequest = ...) -> TeamMemberResponse:
 
     logger.info(body)
     user_id, user_team_ids = verified_user_id_teams(token)
@@ -147,7 +147,9 @@ def post_team_member(token: str = Depends(token_auth_scheme),
         session.add(new_member)
         session.commit()
         session.refresh(new_member)
-        return new_member
+        return TeamMemberResponse(**new_member.dict(),
+                                  username            = new_user.username,
+                                  invited_by_username = session.get(User, user_id).username)
 
 
 @app.delete('/teams/{team_id}/members/{member_id}')
