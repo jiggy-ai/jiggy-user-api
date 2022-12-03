@@ -70,8 +70,6 @@ def get_team_team_id_member(token: str = Depends(token_auth_scheme),
     with Session(engine) as session:
         members = []
         for member in session.exec(select(TeamMember).where(TeamMember.team_id == team_id)):
-            logger.info(str(member))
-            logger.info(member)
             tmr = TeamMemberResponse(**member.dict(),
                                      username            = session.get(User, member.user_id).username,
                                      invited_by_username = session.get(User, member.invited_by).username)
