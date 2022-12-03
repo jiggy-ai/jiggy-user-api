@@ -50,7 +50,7 @@ def post_team(token: str = Depends(token_auth_scheme),
                             user_id=user_id,
                             invited_by=user_id,
                             role=TeamRole.admin,
-                            accepted=True)
+                            accepted=False)
         session.add(member)
         session.commit()
         session.refresh(team)

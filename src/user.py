@@ -75,6 +75,26 @@ def post_users(token: str = Depends(token_auth_scheme), body: UserPostRequest = 
 
 
 
+@app.patch('/users/{user_id}', response_model=User)
+def patch_users(token:   str = Depends(token_auth_scheme),
+               user_id: int = Path(...),
+               body: UserPatchRequest = ...) -> User:
+    """
+    Update User
+    """
+    logger.info(body)
+    token_user_id = verified_user_id(token)    
+    if token_user_id != user_id:
+        raise HTTPException(status_code=401, detail="Authenticated user does not match the requested user_id")
+    with Session(engine) as session:    
+        user = session.get(User, user_id)
+        user.update(body.dict(exclude_unset=True))
+        #user.updated_at = time()
+        session.add(user)
+        session.commit()
+        session.refresh(user)
+        return user
+
 
 @app.get('/users/current', response_model=User)
 def get_users_current(token: str = Depends(token_auth_scheme)) -> User:
@@ -90,8 +110,8 @@ def get_users_current(token: str = Depends(token_auth_scheme)) -> User:
 
 
 @app.delete('/users/{user_id}')
-def delete_users_user_id(token: str = Depends(token_auth_scheme),
-                         user_id: str = Path(...)):
+def delete_users_user_id(token:   str = Depends(token_auth_scheme),
+                         user_id: int = Path(...)):
     """
     Delete specified user
     """
@@ -104,7 +124,7 @@ def delete_users_user_id(token: str = Depends(token_auth_scheme),
         logger.info(user)
         session.exec(delete(TeamMember).where(TeamMember.user_id == user_id))
         session.exec(delete(ApiKey).where(ApiKey.user_id == user_id))
-        session.exec(delete(Team).where(Team.name == user.username))
+        # session.exec(delete(Team).where(Team.name == user.username))  # XXX consider delete team consequences
         session.delete(user)
         session.commit()
 
