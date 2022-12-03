@@ -75,12 +75,22 @@ class Team(SQLModel, table=True):
     updated_at:  timestamp     = Field(default_factory=time, description='The epoch timestamp when the team was updated.')
 
 
+class TeamPostRequest(BaseModel):
+    name:        str           = Field(min_length=3, max_length=39, description='Unique name for this team.')
+    description: Optional[str] = Field(default=None, max_length=255, description='Optional user supplied description.')
+
+class TeamPatchRequest(BaseModel):
+    name:        Optional[str] = Field(default=None, min_length=3, max_length=39, description='Unique name for this team.')
+    description: Optional[str] = Field(default=None, max_length=255, description='Optional user supplied description.')
+    
+    
 class TeamRole(str, enum.Enum):
     admin   = 'admin'
     member  = 'member'
     service = 'service'
     view    = 'view'
-    
+
+
 class TeamMember(SQLModel, table=True):
     id:         int       = Field(primary_key=True, description="Internal membership id")
     team_id:    int       = Field(index=True, description="The team_id that the associated user is a member of.")
@@ -91,14 +101,17 @@ class TeamMember(SQLModel, table=True):
     role:       TeamRole  = Field(sa_column=Column(Enum(TeamRole)), description="The user's role in the team")
     accepted:   bool      = Field(default=False, description='True if the user has accepted the team membership.')
 
-class TeamPostRequest(BaseModel):
-    name:        str           = Field(index=True, min_length=3, max_length=39, description='Unique name for this team.')
-    description: Optional[str] = Field(default=None, description='Optional user supplied description.')
 
 class TeamMemberPostRequest(BaseModel):
     username: str      = Field(description="The user_name of a member to invite to the team.")
     role:     TeamRole = Field(description="The user's role in the team")
 
+
+class TeamMemberPatchRequest(BaseModel):
+    role:       TeamRole  = Field(sa_column=Column(Enum(TeamRole)), description="The user's role in the team")
+    accepted:   bool      = Field(default=False, description='True if the user has accepted the team membership.')
+
+    
 class UserTeams(BaseModel):
     items: List[Team] = Field(description="The list of all of the user's teams")
 

@@ -8,6 +8,7 @@ from sqlmodel import Session, select, delete
 from string import ascii_lowercase
 from random import sample
 from fastapi import Path, Query, Depends, HTTPException
+from time import time
 
 from main import app
 from auth import *
@@ -57,10 +58,35 @@ def post_team(token: str = Depends(token_auth_scheme),
 
 
 
+@app.patch('/teams/{team_id}', response_model=Team)
+def patch_team(token:   str = Depends(token_auth_scheme),
+               team_id: int = Path(...),
+               body: TeamPatchRequest = ...) -> Team:
+    """
+    Update Team
+    """
+    logger.info(body)
+    user_id, user_team_ids = verified_user_id_teams(token)
+    if team_id not in user_team_ids:
+        raise HTTPException(status_code=404, detail="Team not found")
+    with Session(engine) as session:    
+        team = session.get(Team, team_id)
+        if not team:
+            raise HTTPException(status_code=404, detail="Team not found")            
 
-@app.get('/teams/{team_id}/members')
+        team.update(body.dict(exclude_unset=True))
+        team.updated_at = time()
+        session.add(team)
+        session.commit()
+        session.refresh(team)
+        return team
+    
+
+
+
+@app.get('/teams/{team_id}/members', response_model=GetTeamMembersResponse)
 def get_team_team_id_member(token: str = Depends(token_auth_scheme),
-                            team_id: int = Path(...)):
+                            team_id: int = Path(...)) -> GetTeamMembersResponse:
     """
     Get all members of the specified team
     """
@@ -75,14 +101,16 @@ def get_team_team_id_member(token: str = Depends(token_auth_scheme),
                                      invited_by_username = session.get(User, member.invited_by).username)
             members.append(tmr)
         return GetTeamMembersResponse(items=members)
+
     
     
         
-@app.post('/teams/{team_id}/members')
+@app.post('/teams/{team_id}/members', response_model=TeamMember)
 def post_team_member(token: str = Depends(token_auth_scheme),
                      team_id: int = Path(...),
                      body: TeamMemberPostRequest = ...) -> TeamMember:
 
+    logger.info(body)
     user_id, user_team_ids = verified_user_id_teams(token)
     if team_id not in user_team_ids:
         raise HTTPException(status_code=404, detail="Team not found")
@@ -118,7 +146,7 @@ def post_team_member(token: str = Depends(token_auth_scheme),
                                 accepted=True)
         session.add(new_member)
         session.commit()
-        logger.info(f"add {user_member} to {team}")
+        session.refresh(new_member)
         return new_member
 
 
@@ -165,5 +193,52 @@ def delete_team_member(token: str = Depends(token_auth_scheme),
                 raise HTTPException(status_code=403, detail="Team admin must designate another admin before removal.")
         session.delete(target_member)
         session.commit()
+
+
+
+@app.patch('/teams/{team_id}/members/{member_id}', response_model=TeamMember)
+def patch_team_member(token:     str = Depends(token_auth_scheme),
+                      team_id:   int = Path(...),
+                      member_id: int = Path(...),
+                      body: TeamMemberPatchRequest = ...) -> TeamMember:
     
+    """
+    Change the role (admin only) or user's own accepted flag
+    """
+    logger.info(body)
+    user_id, user_team_ids = verified_user_id_teams(token)    
+    if team_id not in user_team_ids:
+        raise HTTPException(status_code=404, detail="Team not found")    
+    with Session(engine) as session:    
+        team = session.get(Team, team_id)
+        if not team:
+            raise HTTPException(status_code=404, detail="Team not found")
+
+        # verify calling user is a member of the specified team
+        statement = select(TeamMember).where(TeamMember.user_id == user_id, TeamMember.team_id == team_id)
+        user_member = session.exec(statement).first()
+        if not user_member:
+            raise HTTPException(status_code=404, detail="Team not found")
+
+        # get user membership entry that is the target of the request
+        target_member = session.get(TeamMember, member_id)
+
+        # reject change to role unless request made by admin
+        requesting_user_is_admin = user_member.role == TeamRole.admin        
+        if body.role is not None and not requesting_user_is_admin:
+            raise HTTPException(status_code=403, detail="Insufficient permission.")
+
+        # determine if the requesting user is the target of the membership entry
+        requesting_user_is_target = target_member.user_id == user_id
+
+        # disallow non-admin to change entries other than their own
+        if not requesting_user_is_target and not requesting_user_is_admin:
+            raise HTTPException(status_code=403, detail="Insufficient permission.")
+
+        target_member.update(body.dict(exclude_unset=True))
+        target_member.updated_at = time()
+        
+        session.commit()
+        session.refresh(target_member)
+        return(target_member)
         
