@@ -74,7 +74,8 @@ def patch_team(token:   str = Depends(token_auth_scheme),
         if not team:
             raise HTTPException(status_code=404, detail="Team not found")            
 
-        team.update(body.dict(exclude_unset=True))
+        for key, value in body.dict(exclude_unset=True).items():
+            setattr(team, key, value)
         team.updated_at = time()
         session.add(team)
         session.commit()

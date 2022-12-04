@@ -88,7 +88,8 @@ def patch_users(token:   str = Depends(token_auth_scheme),
         raise HTTPException(status_code=401, detail="Authenticated user does not match the requested user_id")
     with Session(engine) as session:    
         user = session.get(User, user_id)
-        user.update(body.dict(exclude_unset=True))
+        for key, value in body.dict(exclude_unset=True).items():
+            setattr(user, key, value)
         #user.updated_at = time()
         session.add(user)
         session.commit()
