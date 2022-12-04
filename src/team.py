@@ -128,7 +128,7 @@ def post_team_member(token: str = Depends(token_auth_scheme),
 
         # verify user has sufficient permissions to add new user 
         if user_member.role not in [TeamRole.admin, TeamRole.member]:
-            raise HTTPException(status_code=409, detail="Insufficient permissions to add member to the specified team.")
+            raise HTTPException(status_code=403, detail="Insufficient permissions to add member to the specified team.")
 
         # verify new user exists
         new_user = session.exec(select(User).where(User.username == body.username)).first()
